@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>數字抽籤器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Huninn&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9F5FF; --dots:#CFE5F8; --ink:#1E2A44; --card:#FFFFFF; --muted:#4F5C79;
+  --berry:#E5487A; --sun:#FFD23F; --mint:#21B3A1; --sky:#4C9BE8;
+  --silver:#DCE2EA; --copper:#E8A46C; --gold:#F2C94C; --k:1;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root[data-theme="dark"]{--bg:#16203A;--dots:#22305A;--ink:#F3F6FF;--card:#24304F;--muted:#C4CCE4}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  font-size:21px;line-height:1.5;
+  background-image:radial-gradient(var(--dots) 2.5px,transparent 2.5px);
+  background-size:30px 30px;
+}
+main{max-width:1040px;margin:0 auto;padding:18px 16px 56px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+h1{margin:0;font-size:clamp(32px,6.5vw,52px);line-height:1.15;font-weight:400}
+.range{font-size:clamp(20px,3.6vw,26px);color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:4px solid var(--sky);outline-offset:3px}
+
+.panel{background:var(--card);border:3px solid var(--ink);border-radius:22px;padding:14px;margin-bottom:16px;box-shadow:4px 4px 0 var(--ink)}
+.panel h2{margin:0 0 10px;font-size:22px;font-weight:400;color:var(--muted)}
+.modes{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.modes button{background:var(--card);border:3px solid var(--ink);border-radius:16px;padding:10px 8px;font-size:23px;box-shadow:3px 3px 0 var(--ink);transition:transform .1s}
+.modes button[aria-pressed="true"]{background:var(--sun);color:#1E2A44}
+.modes button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:12px 22px;margin-top:14px;align-items:center}
+.opt{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.opt > span{font-size:21px;color:var(--muted)}
+.seg{display:inline-flex;border:3px solid var(--ink);border-radius:999px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;padding:6px 16px;font-size:21px}
+.seg button + button{border-left:3px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--mint);color:#fff}
+.hidden{display:none !important}
+.range-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.range-row input{width:3.4em;font:inherit;font-size:26px;text-align:center;border:3px solid var(--ink);border-radius:12px;padding:2px 4px;background:var(--card);color:var(--ink)}
+.range-msg{color:var(--berry);font-size:20px;width:100%}
+
+.stage{
+  position:relative;background:var(--card);border:4px solid var(--ink);border-radius:30px;
+  box-shadow:8px 8px 0 var(--ink);min-height:min(58vh,470px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:56px 18px 26px;text-align:center;overflow:hidden;
+}
+.stage.duo{padding:18px 14px 22px}
+.tag{position:absolute;top:14px;left:16px;background:var(--sky);color:#fff;border-radius:999px;padding:2px 16px;font-size:21px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%}
+.slot{--k:.52;border:3px dashed var(--dots);border-radius:22px;padding:12px 8px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+.slot-head{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+.pill{border-radius:999px;padding:1px 14px;font-size:21px;color:#fff;background:var(--sky)}
+.pill.no{background:var(--berry)}
+@media (max-width:680px){.slots{grid-template-columns:1fr}.slot{--k:.68}}
+
+.content{--cz:1;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:calc(var(--k)*12px + 4px);max-width:100%}
+.content.dense{--cz:.62}
+.q{margin-top:16px;font-size:clamp(24px,4.4vw,32px);color:var(--muted)}
+.slot .q{margin-top:10px;font-size:clamp(20px,3.6vw,24px)}
+.big-num{font-size:calc(var(--k)*clamp(150px,36vw,280px));line-height:1;color:var(--berry)}
+.expr{font-size:calc(var(--k)*clamp(54px,12.5vw,112px));line-height:1.15;white-space:nowrap}
+.idiom{font-size:calc(var(--k)*clamp(66px,16vw,140px));line-height:1.1;letter-spacing:.06em}
+.sentence{font-size:calc(var(--k)*clamp(38px,7.6vw,68px) + (1 - var(--k))*18px);line-height:1.35;max-width:15em}
+.bigcn{font-size:calc(var(--k)*clamp(100px,24vw,200px));line-height:1.05;color:var(--berry);letter-spacing:.04em}
+.op{font-size:calc(var(--k)*var(--cz)*clamp(54px,11vw,96px));line-height:1}
+.die{width:calc(var(--k)*var(--cz)*clamp(96px,23vw,160px));height:auto}
+
+.coin{display:flex;align-items:center;justify-content:center;border-radius:50%;border:4px solid var(--ink);color:#1E2A44;flex-direction:column;line-height:1}
+.coin b{font-weight:400}
+.coin small{font-size:.42em;margin-top:4px}
+.c50{font-size:calc(var(--k)*var(--cz)*clamp(50px,11vw,76px));width:2.5em;height:2.5em;background:var(--gold);box-shadow:inset 0 0 0 .18em #F8DE8A}
+.c10{font-size:calc(var(--k)*var(--cz)*clamp(46px,10vw,70px));width:2.45em;height:2.45em;background:var(--silver);box-shadow:inset 0 0 0 .15em #F0F3F7}
+.c5{font-size:calc(var(--k)*var(--cz)*clamp(40px,8.6vw,58px));width:2.4em;height:2.4em;background:var(--silver)}
+.c1{font-size:calc(var(--k)*var(--cz)*clamp(34px,7.4vw,48px));width:2.35em;height:2.35em;background:var(--copper)}
+
+.tally{width:calc(var(--k)*var(--cz)*clamp(110px,25vw,170px));height:auto}
+.count-grid{display:grid;gap:4px 12px;justify-content:center}
+.coins{--n:var(--n1);--r:var(--r1);display:grid;grid-template-columns:repeat(var(--n),auto);gap:calc(var(--k)*12px + 4px);justify-content:center;align-items:center;justify-items:center}
+.count-grid span{line-height:1.15}
+.shapes{width:100%;max-width:calc(var(--k)*680px + 120px);height:auto;background:#F6FAFF;border:3px solid var(--ink);border-radius:20px}
+.pcard{width:calc(var(--k)*var(--cz)*clamp(120px,27vw,180px));aspect-ratio:5/7;background:#fff;border:4px solid #1E2A44;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.pcard .corner{position:absolute;top:6px;left:10px;font-size:calc(var(--k)*var(--cz)*clamp(22px,4.6vw,32px));line-height:1}
+.pcard .rank{font-size:calc(var(--k)*var(--cz)*clamp(70px,16vw,110px));line-height:1}
+.pcard .suit{font-size:calc(var(--k)*var(--cz)*clamp(40px,9vw,62px));line-height:1}
+
+.ngrid{--nf:clamp(34px,7.5vw,58px);display:grid;grid-template-columns:repeat(var(--cols),1fr);gap:calc(var(--k)*10px + 3px);width:100%;max-width:calc(var(--k)*760px + 80px)}
+.ngrid.g8{--nf:clamp(26px,5.6vw,46px)}
+.ngrid.g10{--nf:clamp(20px,4.4vw,38px);max-width:calc(var(--k)*900px + 80px)}
+.ngrid span{border:3px solid #1E2A44;border-radius:14px;color:#1E2A44;font-size:calc(var(--k)*var(--nf) + (1 - var(--k))*10px);line-height:1.35;text-align:center}
+.ngrid span:nth-child(4n+1){background:#FFE7A0}
+.ngrid span:nth-child(4n+2){background:#CDEFFF}
+.ngrid span:nth-child(4n+3){background:#FFD3E1}
+.ngrid span:nth-child(4n+4){background:#CFF5EC}
+@media (max-width:520px){.ngrid{--cols:4 !important}.ngrid.g8{--cols:5 !important}.ngrid.g10{--cols:6 !important}}
+
+.idle{display:flex;flex-direction:column;align-items:center;gap:14px}
+.idle .ball{width:clamp(150px,34vw,230px);height:clamp(150px,34vw,230px);border-radius:50%;background:var(--sun);border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:clamp(90px,20vw,140px);color:#1E2A44}
+.idle p{margin:0;font-size:clamp(26px,5vw,34px)}
+
+.reveal{margin-top:16px;background:var(--card);border:3px solid var(--ink);border-radius:999px;padding:6px 26px;font-size:26px;box-shadow:3px 3px 0 var(--ink)}
+.answer{margin-top:14px;background:var(--mint);color:#fff;border-radius:22px;padding:8px 26px;font-size:clamp(30px,6vw,42px);line-height:1.3}
+.answer small{display:block;font-size:.6em;opacity:.95}
+
+.draw{display:block;width:100%;max-width:560px;margin:24px auto 0;font-size:clamp(38px,8vw,54px);padding:14px;background:var(--berry);color:#fff;border:4px solid var(--ink);border-radius:999px;box-shadow:6px 6px 0 var(--ink)}
+.draw:active{transform:translate(4px,4px);box-shadow:2px 2px 0 var(--ink)}
+.draw:disabled{opacity:.7}
+.status{text-align:center;margin:14px 0 4px;font-size:clamp(24px,4.4vw,30px)}
+.tools{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+.tools button{background:var(--card);border:3px solid var(--ink);border-radius:999px;padding:4px 22px;font-size:22px}
+.tools .fs{background:var(--sun);color:#1E2A44;box-shadow:3px 3px 0 var(--ink)}
+.exit{display:none}
+
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px;margin-top:8px}
+.board span{border:3px solid var(--ink);border-radius:12px;text-align:center;font-size:clamp(22px,4.4vw,28px);padding:2px 0;background:var(--card)}
+.board span.used{background:var(--mint);color:#fff}
+.history{list-style:none;margin:0;padding:0;font-size:22px}
+.history li{padding:6px 2px;border-bottom:2px dashed var(--dots)}
+.history li:last-child{border-bottom:0}
+.history em{font-style:normal;color:var(--berry)}
+.foot{margin-top:10px;color:var(--muted);font-size:18px;text-align:center}
+
+/* ---------- 全螢幕投影 ---------- */
+html.present,html.present body{height:100%;overflow:hidden}
+body.present main{max-width:none;height:100%;display:flex;flex-direction:column;padding:16px 22px 18px}
+body.present header,body.present .panel,body.present .tools,body.present .foot{display:none}
+body.present .stage{flex:1;min-height:0;--k:1.45;padding-top:70px;overflow:auto;border-width:5px}
+body.present .stage.duo{padding-top:20px}
+body.present .slot{--k:.78}
+body.present .tag{font-size:30px;padding:4px 22px;top:18px;left:22px}
+body.present .pill{font-size:28px}
+body.present .q{font-size:clamp(30px,3.4vw,52px)}
+body.present .slot .q{font-size:clamp(24px,2.4vw,36px)}
+/* 投影時依畫面寬高放大：--pw 是可用寬度單位、--ph 是可用高度單位 */
+body.present .stage{--pw:1vw;--ph:1vh}
+body.present .slot{--pw:.46vw;--ph:.8vh}
+@media (max-width:680px){body.present .slot{--pw:.9vw;--ph:.4vh}}
+body.present .content{gap:calc(var(--pw)*1.6)}
+body.present .big-num{font-size:min(calc(var(--ph)*62),calc(var(--pw)*42))}
+body.present .expr{font-size:min(calc(var(--ph)*26),calc(var(--pw)*86/var(--len,8)))}
+body.present .idiom{font-size:min(calc(var(--ph)*34),calc(var(--pw)*20))}
+body.present .sentence{font-size:min(calc(var(--ph)*10.5),calc(var(--pw)*5));max-width:17em}
+body.present .bigcn{font-size:min(calc(var(--ph)*44),calc(var(--pw)*21))}
+body.present .op{font-size:min(calc(var(--ph)*var(--cz)*22),calc(var(--pw)*var(--cz)*9))}
+body.present .die{width:min(calc(var(--ph)*var(--cz)*40),calc(var(--pw)*var(--cz)*22))}
+body.present .tally{width:min(calc(var(--ph)*var(--cz)*40),calc(var(--pw)*var(--cz)*18))}
+body.present .pcard{width:min(calc(var(--ph)*var(--cz)*42),calc(var(--pw)*var(--cz)*22))}
+body.present .pcard .rank{font-size:min(calc(var(--ph)*var(--cz)*25),calc(var(--pw)*var(--cz)*13))}
+body.present .pcard .suit{font-size:min(calc(var(--ph)*var(--cz)*13),calc(var(--pw)*var(--cz)*7))}
+body.present .pcard .corner{font-size:min(calc(var(--ph)*var(--cz)*6),calc(var(--pw)*var(--cz)*3.2))}
+body.present .coin{font-size:calc(var(--cm)*min(calc(var(--ph)*58/(var(--r)*2.7)),calc(var(--pw)*84/(var(--n)*2.8)),calc(var(--ph)*20)))}
+body.present .c50{--cm:1.08}
+body.present .c10{--cm:1}
+body.present .c5{--cm:.88}
+body.present .c1{--cm:.76}
+body.present .count-grid{font-size:var(--pf) !important;gap:calc(var(--ph)*.6) calc(var(--pw)*1.6)}
+body.present .shapes{width:auto;height:min(calc(var(--ph)*64),calc(var(--pw)*60));max-width:100%}
+body.present .ngrid{max-width:none;width:calc(var(--pw)*92);gap:calc(var(--ph)*1.4)}
+body.present .ngrid span{font-size:min(calc(var(--ph)*43/var(--rows)),calc(var(--pw)*56/var(--cols)));border-width:4px}
+body.present .stage.duo{justify-content:stretch}
+.slot .coins{--n:var(--n2);--r:var(--r2)}
+body.present .die{width:min(calc(var(--ph)*var(--cz)*40),calc(var(--pw)*80/(var(--dn,3)*1.3)))}
+body.present .op{font-size:min(calc(var(--ph)*var(--cz)*22),calc(var(--pw)*32/(var(--dn,3)*1.3)))}
+body.present .slots{flex:1;align-items:stretch}
+body.present .reveal{position:absolute;right:22px;bottom:18px;margin:0}
+body.present .answer{position:absolute;left:0;right:0;bottom:18px;margin:0 auto;width:fit-content;max-width:90%;box-shadow:5px 5px 0 var(--ink);border:4px solid var(--ink)}
+body.present .idle .ball{width:30vh;height:30vh;font-size:18vh}
+body.present .idle p{font-size:clamp(32px,3.6vw,52px)}
+body.present .reveal{font-size:34px}
+body.present .answer{font-size:clamp(40px,4.6vw,66px)}
+body.present .bottom{display:flex;align-items:center;justify-content:center;gap:24px;margin-top:14px}
+body.present .draw{margin:0;max-width:640px;font-size:clamp(44px,5vw,70px);padding:10px}
+body.present .status{margin:0;font-size:clamp(26px,2.6vw,40px)}
+body.present .exit{display:block;position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:18px;z-index:5;background:var(--card);border:3px solid var(--ink);border-radius:999px;padding:4px 20px;font-size:22px;opacity:.85}
+@media (max-width:700px){body.present .bottom{flex-direction:column;gap:8px}}
+
+.rolling .content{animation:shake .14s linear infinite}
+.pop .content{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+.pop .answer{animation:pop .4s ease-out}
+@keyframes shake{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-6px,2px) rotate(-3deg)}50%{transform:translate(5px,-3px) rotate(2deg)}75%{transform:translate(-3px,3px) rotate(-1deg)}100%{transform:translate(0,0) rotate(0)}}
+@keyframes pop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.rolling .content,.pop .content,.pop .answer{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>數字抽籤器</h1>
+    <div class="range" id="rangeLabel">數字範圍 1 到 16</div>
+  </header>
+
+  <section class="panel" aria-label="數字範圍">
+    <h2>數字範圍</h2>
+    <div class="range-row">
+      <input id="rMin" type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="起始數字">
+      <span>到</span>
+      <input id="rMax" type="number" inputmode="numeric" min="1" max="99" value="16" aria-label="結束數字">
+      <div class="seg" id="segPreset">
+        <button data-v="1-10" aria-pressed="false">1–10</button>
+        <button data-v="1-16" aria-pressed="true">1–16</button>
+        <button data-v="1-20" aria-pressed="false">1–20</button>
+        <button data-v="1-30" aria-pressed="false">1–30</button>
+      </div>
+      <div class="range-msg" id="rangeMsg"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="抽籤形式">
+    <h2>選擇抽籤形式</h2>
+    <div class="modes" id="modes"></div>
+    <div class="opts">
+      <div class="opt"><span>每次抽</span>
+        <div class="seg" id="segCount">
+          <button data-v="1" aria-pressed="true">1 個</button>
+          <button data-v="2" aria-pressed="false">2 個（不同）</button>
+          <button data-v="2s" aria-pressed="false">2 個（可能相同）</button>
+        </div>
+      </div>
+      <div class="opt"><span>號碼</span>
+        <div class="seg" id="segRepeat">
+          <button data-v="no" aria-pressed="true">不可重複</button>
+          <button data-v="yes" aria-pressed="false">可重複</button>
+        </div>
+      </div>
+      <div class="opt" id="optMath"><span>算式難度</span>
+        <div class="seg" id="segMath">
+          <button data-v="easy" aria-pressed="true">加減</button>
+          <button data-v="mid" aria-pressed="false">加減乘除</button>
+          <button data-v="hard" aria-pressed="false">兩步驟</button>
+        </div>
+      </div>
+      <div class="opt" id="optDice"><span>骰子玩法</span>
+        <div class="seg" id="segDice">
+          <button data-v="plus" aria-pressed="true">相加</button>
+          <button data-v="mix" aria-pressed="false">加減混合</button>
+        </div>
+      </div>
+      <div class="opt" id="optCount"><span>數數看排列</span>
+        <div class="seg" id="segCountLayout">
+          <button data-v="grid" aria-pressed="true">整齊</button>
+          <button data-v="scatter" aria-pressed="false">散亂</button>
+        </div>
+      </div>
+      <div class="opt" id="optMiss"><span>找缺少排列</span>
+        <div class="seg" id="segMiss">
+          <button data-v="order" aria-pressed="true">依序</button>
+          <button data-v="shuffle" aria-pressed="false">打亂</button>
+        </div>
+      </div>
+      <div class="opt"><span>答案</span>
+        <div class="seg" id="segReveal">
+          <button data-v="off" aria-pressed="true">不顯示</button>
+          <button data-v="on" aria-pressed="false">可揭曉</button>
+        </div>
+      </div>
+      <div class="opt"><span>音效</span>
+        <div class="seg" id="segSound">
+          <button data-v="on" aria-pressed="true">開</button>
+          <button data-v="off" aria-pressed="false">關</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="stage" aria-live="polite"></section>
+  <div class="bottom">
+    <button class="draw" id="drawBtn">抽籤</button>
+    <div class="status" id="status"></div>
+  </div>
+  <div class="tools">
+    <button class="fs" id="fsBtn">全螢幕投影</button>
+    <button id="resetBtn">重新開始</button>
+  </div>
+  <button class="exit" id="exitBtn">離開全螢幕</button>
+
+  <section class="panel hidden" id="boardPanel" style="margin-top:20px" aria-label="已抽出的號碼">
+    <h2>已抽出的號碼</h2>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="panel" id="histPanel" style="margin-top:20px" aria-label="抽籤紀錄">
+    <h2>抽籤紀錄</h2>
+    <ol class="history" id="history"></ol>
+  </section>
+  <p class="foot">按空白鍵也可以抽籤，按 F 鍵切換全螢幕</p>
+</main>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+const R={min:1,max:16};
+const ALL=()=>{const a=[];for(let n=R.min;n<=R.max;n++)a.push(n);return a};
+
+const MODES=[
+  ['num','純數字'],['math','算式'],['idiom','成語句子'],['dice','骰子'],['coin','錢幣'],
+  ['tally','正字記號'],['count','數數看'],['shapes','數圖案'],['card','撲克牌'],['bigcn','大寫國字'],
+  ['missing','找缺少'],['dup','找重複'],['mix','綜合隨機']
+];
+const MODE_NAME=Object.fromEntries(MODES);
+
+const state={mode:'num',count:'1',repeat:false,math:'easy',dice:'plus',miss:'order',countLayout:'grid',reveal:false,sound:true};
+let used=new Set(), history=[], rolling=false;
+
+/* ---------- 音效 ---------- */
+let ac=null;
+function audio(){ if(!state.sound) return null; try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); return ac;}catch(e){return null} }
+function tone(freq,dur,type,vol,delay){
+  const a=audio(); if(!a) return;
+  const t0=a.currentTime+(delay||0);
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=type||'sine'; o.frequency.value=freq;
+  g.gain.setValueAtTime(vol||.08,t0); g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.connect(g).connect(a.destination); o.start(t0); o.stop(t0+dur+.02);
+}
+const tick=()=>tone(rint(700,1000),.05,'square',.04);
+const chime=()=>{[659,880,1175,1568].forEach((f,i)=>tone(f,.35,'triangle',.09,i*.09))};
+const revealSound=()=>{[523,784].forEach((f,i)=>tone(f,.3,'sine',.1,i*.12))};
+
+/* ---------- 共用 ---------- */
+const CN=['零','一','二','三','四','五','六','七','八','九','十'];
+function cnNum(n){ if(n<=10) return CN[n]; const t=Math.floor(n/10),o=n%10; return (t===1?'十':CN[t]+'十')+(o?CN[o]:''); }
+const qn=n=>n===2?'兩':cnNum(n);
+const NUMV={'一':1,'二':2,'兩':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
+function spread(t,n,max){ const a=Array(n).fill(1); let r=t-n; while(r>0){ const i=rint(0,n-1); if(a[i]<max){a[i]++;r--;} } return shuffle(a); }
+
+/* ---------- 成語（自動計算數字和） ---------- */
+const IDIOMS_RAW=[
+ '一見鍾情','一帆風順','一鳴驚人','一針見血','一往情深',
+ '一心一意','一模一樣','二話不說','兩全其美','一生一世',
+ '一乾二淨','獨一無二','一石二鳥','一舉兩得','三顧茅廬','一刀兩斷','一清二楚',
+ '舉一反三','四海為家','一日三秋','一波三折','四季如春',
+ '三心二意','五體投地','三言兩語','三長兩短','五福臨門','三番兩次',
+ '六神無主','六畜興旺','六親不認',
+ '說三道四','不三不四','低三下四','七步成詩','丟三落四',
+ '八仙過海','八面玲瓏','三五成群','三令五申',
+ '五湖四海','四分五裂','三頭六臂','九霄雲外',
+ '九死一生','九牛一毛','三三兩兩','一言九鼎','十年寒窗',
+ '五顏六色','五臟六腑','以一當十',
+ '四平八穩','三教九流','六六大順','四通八達','四面八方',
+ '五花八門','九五之尊',
+ '七上八下','七嘴八舌','七手八腳','亂七八糟','五光十色','七拼八湊','橫七豎八',
+ '十全十美','十拿九穩','十有八九'
+];
+const IDIOMS={};
+IDIOMS_RAW.forEach(w=>{
+  const v=[...w].reduce((s,c)=>s+(NUMV[c]||0),0);
+  (IDIOMS[v]=IDIOMS[v]||[]).push(w);
+});
+const numsIn=w=>[...w].filter(c=>NUMV[c]);
+
+const SENT1=[a=>`阿嬤泡了${qn(a)}杯熱茶`,a=>`窗台上放了${qn(a)}盆花`,a=>`池塘裡游著${qn(a)}隻鴨子`];
+const SENT2=[
+ (a,b)=>`公園裡有${qn(a)}隻小狗和${qn(b)}隻小貓`,
+ (a,b)=>`早上買了${qn(a)}顆蘋果，又買了${qn(b)}顆橘子`,
+ (a,b)=>`阿公種了${qn(a)}棵樹，阿嬤種了${qn(b)}盆花`,
+ (a,b)=>`桌上有${qn(a)}個饅頭和${qn(b)}個包子`,
+ (a,b)=>`車上坐了${qn(a)}位爺爺和${qn(b)}位奶奶`
+];
+const SENT3=[
+ (a,b,c)=>`菜籃裡有${qn(a)}根蘿蔔、${qn(b)}顆高麗菜和${qn(c)}條地瓜`,
+ (a,b,c)=>`教室裡有${qn(a)}張桌子、${qn(b)}把椅子和${qn(c)}個時鐘`,
+ (a,b,c)=>`我吃了${qn(a)}顆水餃、${qn(b)}顆湯圓和${qn(c)}塊蛋糕`
+];
+function sentence(t){
+  const kinds=[];
+  if(t<=9) kinds.push('one');
+  if(t>=2) kinds.push('two','two');
+  if(t>=3&&t<=27) kinds.push('three');
+  if(!kinds.length) kinds.push('one');
+  const k=pick(kinds);
+  let nums;
+  if(k==='one') nums=[t];
+  else if(k==='two'){const lo=t<=18?Math.max(1,t-9):1, hi=t<=18?Math.min(9,t-1):t-1; const a=rint(lo,hi); nums=[a,t-a];}
+  else{const a=rint(Math.max(1,t-18),Math.min(9,t-2)); const r=t-a; const b=rint(Math.max(1,r-9),Math.min(9,r-1)); nums=[a,b,r-b];}
+  const text=(k==='one'?pick(SENT1):k==='two'?pick(SENT2):pick(SENT3))(...nums);
+  return {html:`<div class="sentence">${text}</div>`,q:'句子裡的數字加起來是多少？',summary:text,explain:nums.map(qn).join(' ＋ ')};
+}
+
+/* ---------- 圖形 ---------- */
+const PIPS={1:[[50,50]],2:[[30,30],[70,70]],3:[[28,28],[50,50],[72,72]],4:[[30,30],[70,30],[30,70],[70,70]],
+  5:[[28,28],[72,28],[50,50],[28,72],[72,72]],6:[[30,26],[70,26],[30,50],[70,50],[30,74],[70,74]]};
+function die(n){
+  return `<svg class="die" viewBox="0 0 100 100" role="img" aria-label="骰子"><rect x="5" y="5" width="90" height="90" rx="18" fill="#fff" stroke="#1E2A44" stroke-width="5"/>`+
+    PIPS[n].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="${n===1?14:9}" fill="${n===1||n===4?'#E5487A':'#1E2A44'}"/>`).join('')+`</svg>`;
+}
+const STROKES=[[14,14,86,14],[50,14,50,88],[50,51,80,51],[24,51,24,88],[8,88,92,88]];
+function tally(k){
+  return `<svg class="tally" viewBox="0 0 100 100" role="img" aria-label="正字記號">`+
+    STROKES.slice(0,k).map(([a,b,c,d])=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>`).join('')+`</svg>`;
+}
+const rankName=n=>({1:'A',11:'J',12:'Q',13:'K'})[n]||n;
+function card(n){
+  const [s,col]=pick([['♠','#1E2A44'],['♥','#E5487A'],['♦','#E5487A'],['♣','#1E2A44']]);
+  const r=rankName(n);
+  return `<div class="pcard" style="color:${col}"><span class="corner">${r}${s}</span><span class="rank">${r}</span><span class="suit">${s}</span></div>`;
+}
+const starPts=(()=>{const p=[];for(let i=0;i<10;i++){const r=i%2?0.45:1,a=-Math.PI/2+i*Math.PI/5;p.push((r*Math.cos(a)).toFixed(3)+','+(r*Math.sin(a)).toFixed(3))}return p.join(' ')})();
+const SHAPES=[
+  '<circle r="0.95"/>',
+  '<rect x="-0.85" y="-0.85" width="1.7" height="1.7" rx="0.28"/>',
+  '<path d="M0 -1 L0.98 0.8 L-0.98 0.8Z"/>',
+  '<path d="M0 -1.05 L0.85 0 L0 1.05 L-0.85 0Z"/>',
+  `<polygon points="${starPts}"/>`,
+  '<path d="M0 0.95 C-1.5 -0.1 -0.75 -1.35 0 -0.42 C0.75 -1.35 1.5 -0.1 0 0.95Z"/>'
+];
+const SHAPE_COLORS=['#E5487A','#FFB400','#21B3A1','#4C9BE8','#8E6CE0','#FF7A45'];
+function shapeField(t){
+  const W=400,H=t>30?300:260,cells=t+Math.max(2,Math.round(t*.35));
+  const cols=Math.ceil(Math.sqrt(cells*W/H)),rows=Math.ceil(cells/cols);
+  const cw=W/cols,ch=H/rows,s=Math.min(cw,ch)*0.3;
+  const idx=shuffle([...Array(cols*rows).keys()]).slice(0,t);
+  const items=idx.map(i=>{
+    const c=i%cols,r=Math.floor(i/cols);
+    const jx=(cw/2-s-4)*(Math.random()*2-1)*0.8, jy=(ch/2-s-4)*(Math.random()*2-1)*0.8;
+    const x=(c+.5)*cw+jx, y=(r+.5)*ch+jy, rot=rint(-20,20);
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot}) scale(${s.toFixed(1)})" fill="${pick(SHAPE_COLORS)}" stroke="#1E2A44" stroke-width="${(Math.min(3,s*.25)/s).toFixed(3)}" stroke-linejoin="round">${pick(SHAPES)}</g>`;
+  }).join('');
+  return `<svg class="shapes" viewBox="0 0 ${W} ${H}" role="img" aria-label="圖案">${items}</svg>`;
+}
+function emojiField(t,e){
+  const W=400,H=t>30?300:260,cells=t+Math.max(2,Math.round(t*.4));
+  const cols=Math.ceil(Math.sqrt(cells*W/H)),rows=Math.ceil(cells/cols);
+  const cw=W/cols,ch=H/rows,fs=Math.min(cw,ch)*0.62;
+  const idx=shuffle([...Array(cols*rows).keys()]).slice(0,t);
+  const items=idx.map(i=>{
+    const c=i%cols,r=Math.floor(i/cols);
+    const jx=(cw-fs)/2*(Math.random()*2-1)*0.85, jy=(ch-fs)/2*(Math.random()*2-1)*0.85;
+    const x=(c+.5)*cw+jx, y=(r+.5)*ch+jy, rot=rint(-35,35);
+    return `<text x="0" y="0" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot})" font-size="${fs.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${e}</text>`;
+  }).join('');
+  return `<svg class="shapes" viewBox="0 0 ${W} ${H}" role="img" aria-label="圖示">${items}</svg>`;
+}
+function ngrid(list){
+  const n=list.length, g=n<=17?'':n<=33?'g8':'g10', cols=n<=17?6:n<=33?8:10;
+  return `<div class="ngrid ${g}" style="--cols:${cols};--rows:${Math.ceil(n/cols)}">${list.map(x=>`<span>${x}</span>`).join('')}</div>`;
+}
+
+/* ---------- 各形式產生器 ---------- */
+const GEN={
+  num:t=>({html:`<div class="big-num">${t}</div>`,q:'抽到的號碼',summary:String(t),explain:''}),
+
+  math:t=>{
+    const add=()=> t<2?sub():(()=>{const a=rint(1,t-1);return `${a} ＋ ${t-a}`})();
+    const sub=()=>{const b=rint(1,9);return `${t+b} − ${b}`};
+    const div=()=>{const b=rint(2,5);return `${t*b} ÷ ${b}`};
+    const mul=()=>{const p=[];for(let a=2;a<=t;a++)if(t%a===0&&t/a>=2&&a<=12&&t/a<=12)p.push([a,t/a]);return p.length?(()=>{const [a,b]=pick(p);return `${a} × ${b}`})():div()};
+    const addsub=()=>{const c=rint(1,6),s=t+c,a=rint(1,s-1);return `${a} ＋ ${s-a} − ${c}`};
+    const mulsub=()=>{const p=[];for(let a=2;a<=12;a++)for(let b=2;b<=12;b++)if(a*b>t&&a*b-t<=9)p.push([a,b]);if(!p.length)return addsub();const [a,b]=pick(p);return `${a} × ${b} − ${a*b-t}`};
+    const muladd=()=>{const p=[];for(let a=2;a<=9;a++)for(let b=2;b<=9;b++)if(a*b<t&&t-a*b<=20)p.push([a,b]);if(!p.length)return mulsub();const [a,b]=pick(p);return `${a} × ${b} ＋ ${t-a*b}`};
+    const divadd=()=>{if(t<2)return addsub();const b=rint(2,4),q=rint(1,Math.min(t-1,15));return `${q*b} ÷ ${b} ＋ ${t-q}`};
+    const forms={easy:[add,sub],mid:[add,sub,mul,div],hard:[addsub,muladd,mulsub,divadd]}[state.math];
+    const e=pick(forms)();
+    return {html:`<div class="expr" style="--len:${[...(e+' = ?')].reduce((s,c)=>s+(/\d/.test(c)?.58:c===' '?.28:c==='＋'?1:c==='?'?.55:.66),0).toFixed(2)}">${e} = ?</div>`,q:'算算看，答案是多少？',summary:e,explain:`${e} = ${t}`};
+  },
+
+  idiom:t=>{
+    if(IDIOMS[t]&&Math.random()<0.7){
+      const w=pick(IDIOMS[t]);
+      return {html:`<div class="idiom">${w}</div>`,q:'成語裡的數字加起來是多少？',summary:w,explain:numsIn(w).join(' ＋ ')};
+    }
+    return sentence(t);
+  },
+
+  dice:t=>{
+    const forms=[];
+    if(t===1) forms.push({d:[1],o:[]});
+    if(t>=2&&t<=12) forms.push({d:spread(t,2,6),o:['＋']});
+    if(t>=3&&t<=18&&(t>=13||Math.random()<.35)) forms.push({d:spread(t,3,6),o:['＋','＋']});
+    if(t>18){let n=Math.ceil(t/6); if(n+1<=t&&Math.random()<.4)n++; forms.push({d:spread(t,n,6),o:Array(n-1).fill('＋')});}
+    if(state.dice==='mix'){
+      if(t<=5){const a=rint(t+1,6);forms.push({d:[a,a-t],o:['−']},{d:[a,a-t],o:['−']});}
+      if(t<=11){const c=rint(1,Math.min(6,12-t)),s=t+c,a=rint(Math.max(1,s-6),Math.min(6,s-1));forms.push({d:[a,s-a,c],o:['＋','−']});}
+    }
+    const f=pick(forms);
+    let html='',txt='';
+    f.d.forEach((n,i)=>{html+=die(n);txt+=n;if(i<f.o.length){html+=`<span class="op">${f.o[i]}</span>`;txt+=` ${f.o[i]} `;}});
+    html=html.split('class="die"').join(`class="die" style="--dn:${f.d.length}"`).split('class="op"').join(`class="op" style="--dn:${f.d.length}"`);
+    return {html,cls:f.d.length>3?'dense':'',q:f.d.length===1?'骰子是幾點？':'骰子算一算，是多少？',summary:'骰子 '+txt,explain:`${txt} = ${t}`};
+  },
+
+  coin:t=>{
+    const n50=t>=50?rint(0,1):0; let r=t-50*n50;
+    const n10=rint(Math.max(0,Math.ceil((r-14)/10)),Math.floor(r/10)); r-=10*n10;
+    const n5=rint(Math.max(0,Math.ceil((r-6)/5)),Math.floor(r/5)), n1=r-5*n5;
+    const list=[...Array(n50).fill(50),...Array(n10).fill(10),...Array(n5).fill(5),...Array(n1).fill(1)];
+    const N=list.length;
+    const best=ratio=>{let bc=1,bs=0;for(let c=1;c<=N;c++){const r=Math.ceil(N/c),s=Math.min(1/(r*2.7),ratio/(c*2.8));if(s>bs+1e-9){bs=s;bc=c;}}return [bc,Math.ceil(N/bc)];};
+    const [c1,k1]=best(2.5),[c2,k2]=best(1.45);
+    const html=`<div class="coins" style="--n1:${c1};--r1:${k1};--n2:${c2};--r2:${k2}">`+list.map(v=>`<div class="coin c${v}"><b>${v}</b><small>元</small></div>`).join('')+`</div>`;
+    const parts=[];if(n50)parts.push(`50元×${n50}`);if(n10)parts.push(`10元×${n10}`);if(n5)parts.push(`5元×${n5}`);if(n1)parts.push(`1元×${n1}`);
+    return {html,cls:list.length>6?'dense':'',q:'這些錢加起來共幾元？',summary:'錢幣 '+parts.join('、'),explain:list.join(' ＋ ')+' 元'};
+  },
+
+  tally:t=>{
+    const groups=[];for(let i=0;i<Math.floor(t/5);i++)groups.push(5);if(t%5)groups.push(t%5);
+    return {html:groups.map(tally).join(''),cls:groups.length>4?'dense':'',q:'正字記號代表多少？',summary:'正字記號',explain:groups.length>1?`${Math.floor(t/5)} 個正${t%5?` ＋ ${t%5}`:''}`:''};
+  },
+
+  count:t=>{
+    const e=pick(['🍎','🍊','🍌','🍓','🍇','🌸','⭐','🐟','🍉','🎈']);
+    const size=t<=6?'clamp(54px,13vw,84px)':t<=10?'clamp(46px,11vw,72px)':t<=16?'clamp(38px,9.5vw,62px)':t<=30?'clamp(32px,7.5vw,50px)':'clamp(22px,5.2vw,38px)';
+    const cols=t<=16?4:t<=30?5:10;
+    const rows=Math.ceil(t/cols);
+    const pf=`min(calc(var(--ph)*${(58/(rows*1.25)).toFixed(2)}),calc(var(--pw)*${(85/(cols*1.35)).toFixed(2)}))`;
+    if(state.countLayout==='scatter') return {html:emojiField(t,e),q:'數數看，共有幾個？',summary:'數數看 '+e,explain:''};
+    return {html:`<div class="count-grid" style="--pf:${pf};grid-template-columns:repeat(${cols},auto);font-size:calc(var(--k)*${size} + (1 - var(--k))*12px)">${Array(t).fill(`<span>${e}</span>`).join('')}</div>`,
+      q:'數數看，共有幾個？',summary:'數數看 '+e,explain:''};
+  },
+
+  shapes:t=>({html:shapeField(t),q:'圖案一共有幾個？',summary:'數圖案',explain:''}),
+
+  card:t=>{
+    let cs;
+    if(t<=13&&(t===1||Math.random()<.6)) cs=[t];
+    else{let n=Math.max(2,Math.ceil(t/13)); if(n+1<=t&&t>13&&Math.random()<.3)n++; cs=spread(t,n,13);}
+    return {html:cs.map(card).join('<span class="op">＋</span>'),cls:cs.length>3?'dense':'',q:'撲克牌是幾點？（A=1、J=11、Q=12、K=13）',
+      summary:'撲克牌 '+cs.map(rankName).join(' ＋ '),explain:cs.length>1?cs.join(' ＋ '):''};
+  },
+
+  bigcn:t=>{
+    const B=['','壹','貳','參','肆','伍','陸','柒','捌','玖'];
+    const s=t<10?B[t]:(Math.floor(t/10)===1?'':B[Math.floor(t/10)])+'拾'+B[t%10];
+    return {html:`<div class="bigcn">${s}</div>`,q:'這個大寫國字是多少？',summary:s,explain:''};
+  },
+
+  missing:t=>{
+    let list=ALL().filter(n=>n!==t);
+    if(state.miss==='shuffle') list=shuffle(list);
+    return {html:ngrid(list),q:`${R.min} 到 ${R.max} 裡面，少了哪一個數字？`,summary:'找缺少的數字',explain:''};
+  },
+
+  dup:t=>({html:ngrid(shuffle([...ALL(),t])),q:'哪一個數字出現了兩次？',summary:'找重複的數字',explain:''})
+};
+
+/* ---------- 抽籤 ---------- */
+function build(mode,t){
+  const m=mode==='mix'?pick(MODES.map(x=>x[0]).filter(x=>x!=='mix')):mode;
+  return Object.assign({mode:m,t,cls:''},GEN[m](t));
+}
+const remaining=()=>ALL().filter(n=>!used.has(n));
+
+function pickNumbers(){
+  const pool=state.repeat?ALL():remaining();
+  if(!pool.length) return null;
+  if(state.count==='1') return [pick(pool)];
+  if(state.count==='2s') return [pick(pool),pick(pool)];
+  if(pool.length===1) return [pool[0]];
+  const s=shuffle(pool.slice());
+  return [s[0],s[1]];
+}
+
+const stage=$('#stage'), drawBtn=$('#drawBtn');
+function idle(msg){
+  stage.className='stage';
+  stage.innerHTML=`<div class="idle"><div class="ball">？</div><p>${msg||'選好形式，按下「抽籤」'}</p></div>`;
+}
+const contentDiv=it=>`<div class="content ${it.cls||''}">${it.html}</div>`;
+function show(items,final){
+  stage.className='stage';
+  let body;
+  if(items.length===1){
+    const it=items[0];
+    body=`<span class="tag">${MODE_NAME[it.mode]}</span>${contentDiv(it)}<div class="q">${it.q}</div>`;
+  }else{
+    stage.classList.add('duo');
+    body=`<div class="slots">`+items.map((it,i)=>`<div class="slot"><div class="slot-head"><span class="pill no">第${i?'二':'一'}個</span><span class="pill">${MODE_NAME[it.mode]}</span></div>${contentDiv(it)}<div class="q">${it.q}</div></div>`).join('')+`</div>`;
+  }
+  if(final&&state.reveal&&items.some(it=>it.mode!=='num')){
+    const ex=items.map(it=>it.explain).filter(Boolean).join('　');
+    body+=`<button class="reveal" id="revealBtn">揭曉答案</button><div class="answer hidden" id="ans">答案是 ${items.map(it=>it.t).join(' 和 ')}${ex?`<small>${ex}</small>`:''}</div>`;
+  }
+  stage.innerHTML=body;
+  stage.scrollTop=0;
+  void stage.offsetWidth;
+  stage.classList.add(final?'pop':'rolling');
+  const rb=$('#revealBtn');
+  if(rb) rb.onclick=()=>{rb.classList.add('hidden');$('#ans').classList.remove('hidden');revealSound();};
+}
+
+function draw(){
+  if(rolling) return;
+  const nums=pickNumbers();
+  if(!nums){idle(`${R.max-R.min+1} 支籤都抽完了，請按「重新開始」`);return;}
+  rolling=true; drawBtn.disabled=true;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const frames=reduce?3:14; let i=0;
+  (function step(){
+    if(i<frames){ show(nums.map(()=>build(state.mode,rint(R.min,R.max))),false); tick(); i++; setTimeout(step,70+i*6); return; }
+    const items=nums.map(t=>build(state.mode,t));
+    nums.forEach(t=>used.add(t));
+    history.unshift(items);
+    show(items,true); chime();
+    rolling=false; drawBtn.disabled=false;
+    update();
+  })();
+}
+
+function update(){
+  const total=R.max-R.min+1, n=used.size;
+  $('#rangeLabel').textContent=`數字範圍 ${R.min} 到 ${R.max}`;
+  $('#status').textContent=state.repeat?`已抽 ${history.length} 次`:`還剩 ${total-n} 支籤`;
+  $('#boardPanel').classList.toggle('hidden',!state.reveal);
+  $('#board').innerHTML=ALL().map(k=>`<span class="${used.has(k)?'used':''}">${k}</span>`).join('');
+  $('#histPanel').classList.toggle('hidden',!history.length);
+  $('#history').innerHTML=history.map((items,i)=>{
+    const txt=items.map(h=>h.summary).join(' ／ ');
+    const ans=(state.reveal&&items.some(h=>h.mode!=='num'))?`　答案 <em>${items.map(h=>h.t).join('、')}</em>`:'';
+    return `<li>第 ${history.length-i} 次：${txt}${ans}</li>`;
+  }).join('');
+}
+
+/* ---------- 數字範圍 ---------- */
+function setRange(a,b){
+  const msg=$('#rangeMsg');
+  if(!Number.isInteger(a)||!Number.isInteger(b)||a<1||b>99){msg.textContent='請輸入 1 到 99 之間的整數';return;}
+  if(a>=b){msg.textContent='起始數字要比結束數字小';return;}
+  msg.textContent='';
+  if(a===R.min&&b===R.max) return;
+  R.min=a;R.max=b;
+  $('#rMin').value=a;$('#rMax').value=b;
+  document.querySelectorAll('#segPreset button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===`${a}-${b}`));
+  used.clear();history=[];
+  if(!rolling) idle(`範圍改為 ${a} 到 ${b}，按下「抽籤」開始`);
+  update();
+}
+const readRange=()=>setRange(parseInt($('#rMin').value,10),parseInt($('#rMax').value,10));
+$('#rMin').addEventListener('change',readRange);
+$('#rMax').addEventListener('change',readRange);
+$('#segPreset').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const [a,c]=b.dataset.v.split('-').map(Number); setRange(a,c);
+});
+
+/* ---------- 全螢幕投影 ---------- */
+const root=document.documentElement;
+function enterPresent(){
+  document.body.classList.add('present'); root.classList.add('present');
+  try{
+    if(root.requestFullscreen) root.requestFullscreen().catch(()=>{});
+    else if(root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+  }catch(e){}
+  drawBtn.focus();
+}
+function exitPresent(){
+  document.body.classList.remove('present'); root.classList.remove('present');
+  try{
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+    else if(document.webkitFullscreenElement) document.webkitExitFullscreen();
+  }catch(e){}
+}
+const inPresent=()=>document.body.classList.contains('present');
+document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement&&inPresent()){document.body.classList.remove('present');root.classList.remove('present');} });
+$('#fsBtn').addEventListener('click',enterPresent);
+$('#exitBtn').addEventListener('click',exitPresent);
+
+/* ---------- 介面 ---------- */
+$('#modes').innerHTML=MODES.map(([id,name])=>`<button data-m="${id}" aria-pressed="${id===state.mode}">${name}</button>`).join('');
+$('#modes').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  state.mode=b.dataset.m;
+  document.querySelectorAll('#modes button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  syncOpts(); if(!rolling) idle();
+});
+function seg(id,fn){
+  const el=$(id);
+  el.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    fn(b.dataset.v); update();
+  });
+}
+seg('#segCount',v=>state.count=v);
+seg('#segRepeat',v=>state.repeat=v==='yes');
+seg('#segMath',v=>state.math=v);
+seg('#segDice',v=>state.dice=v);
+seg('#segMiss',v=>state.miss=v);
+seg('#segCountLayout',v=>state.countLayout=v);
+seg('#segReveal',v=>state.reveal=v==='on');
+seg('#segSound',v=>state.sound=v==='on');
+function syncOpts(){
+  $('#optMath').classList.toggle('hidden',!['math','mix'].includes(state.mode));
+  $('#optDice').classList.toggle('hidden',!['dice','mix'].includes(state.mode));
+  $('#optMiss').classList.toggle('hidden',!['missing','mix'].includes(state.mode));
+  $('#optCount').classList.toggle('hidden',!['count','mix'].includes(state.mode));
+}
+drawBtn.addEventListener('click',draw);
+$('#resetBtn').addEventListener('click',()=>{used.clear();history=[];idle();update();});
+document.addEventListener('keydown',e=>{
+  const tag=document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA') return;
+  if(e.code==='Space'&&tag!=='BUTTON'){e.preventDefault();draw();}
+  else if(e.key==='f'||e.key==='F'){inPresent()?exitPresent():enterPresent();}
+  else if(e.key==='Escape'&&inPresent()){exitPresent();}
+});
+
+syncOpts(); idle(); update();
+})();
+</script>
+</body>
+</html>
